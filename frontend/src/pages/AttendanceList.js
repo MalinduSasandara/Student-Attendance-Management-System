@@ -1,105 +1,132 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 const AttendanceList = () => {
-  const [attendances, setAttendances] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDate, setSelectedDate] = useState('');
-
-  const navigate = useNavigate();
+  const [logs, setLogs] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [selectedStudentFilter, setSelectedStudentFilter] = useState('');
 
   useEffect(() => {
-    fetchAttendances();
+    fetchLogs();
+    fetchStudents();
   }, []);
 
-  const fetchAttendances = async () => {
+  const fetchLogs = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/attendances');
-      setAttendances(response.data);
+      const res = await axios.get('http://localhost:8000/api/attendances');
+      setLogs(res.data);
     } catch (error) {
-      console.error('Error fetching attendances:', error);
+      console.error('Error fetching logs:', error);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Delete this record?')) {
+  const fetchStudents = async () => {
+    try {
+      const res = await axios.get('http://localhost:8000/api/students');
+      setStudents(res.data);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    }
+  };
+
+  const handleFilterChange = async (studentId) => {
+    setSelectedStudentFilter(studentId);
+    if (studentId === '') {
+      fetchLogs();
+    } else {
       try {
-        await axios.delete(`http://localhost:8000/api/attendances/${id}`);
-        setAttendances(attendances.filter(item => item.id !== id));
+        const res = await axios.get(`http://localhost:8000/api/attendances/student/${studentId}`);
+        setLogs(res.data);
       } catch (error) {
-        console.error('Error deleting:', error);
+        console.error('Error filtering logs:', error);
       }
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
+  const handleStatusUpdate = async (id, currentStatus) => {
+    const newStatus = currentStatus === 'Present' ? 'Absent' : 'Present';
+    try {
+      await axios.put(`http://localhost:8000/api/attendances/${id}`, { status: newStatus });
+      if (selectedStudentFilter) {
+        handleFilterChange(selectedStudentFilter);
+      } else {
+        fetchLogs();
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
   };
 
-  const filteredAttendances = attendances.filter(item => {
-    const matchesSearch = 
-      item.student?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.student?.student_code?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDate = selectedDate ? item.date === selectedDate : true;
-    return matchesSearch && matchesDate;
-  });
+  const handleDelete = async (id) => {
+    if (window.confirm('Delete this attendance record?')) {
+      try {
+        await axios.delete(`http://localhost:8000/api/attendances/${id}`);
+        if (selectedStudentFilter) {
+          handleFilterChange(selectedStudentFilter);
+        } else {
+          fetchLogs();
+        }
+      } catch (error) {
+        console.error('Error deleting record:', error);
+      }
+    }
+  };
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      {/* Top Header Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', alignItems: 'center' }}>
-        <Link to="/dashboard" style={{ color: '#555', textDecoration: 'none' }}>Dashboard</Link>
-        <Link to="/students" style={{ color: '#555', textDecoration: 'none' }}>Students</Link>
-        <Link to="/scan-qr" style={{ color: '#555', textDecoration: 'none' }}>Scan QR</Link>
-        <Link to="/attendances" style={{ fontWeight: 'bold', color: '#000', textDecoration: 'none' }}>Attendance Logs</Link>
-        <button onClick={handleLogout} style={{ marginLeft: 'auto', cursor: 'pointer' }}>Logout</button>
+      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+        <Link to="/dashboard">Dashboard</Link>
+        <Link to="/students">Students</Link>
+        <Link to="/scan-qr">Scan QR</Link>
+        <Link to="/attendances"><b>Attendance Logs</b></Link>
       </div>
 
-      <h2>Attendance Records</h2>
+      <h2>Attendance Logs</h2>
 
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        <input 
-          type="text" 
-          placeholder="Search by student name or code..." 
-          value={searchTerm} 
-          onChange={(e) => setSearchTerm(e.target.value)} 
-        />
-        <input 
-          type="date" 
-          value={selectedDate} 
-          onChange={(e) => setSelectedDate(e.target.value)} 
-        />
+      {/* Filter by Student */}
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{ marginRight: '10px' }}>Filter by Student:</label>
+        <select value={selectedStudentFilter} onChange={(e) => handleFilterChange(e.target.value)}>
+          <option value="">All Students</option>
+          {students.map(s => (
+            <option key={s.id} value={s.id}>{s.name} ({s.student_code})</option>
+          ))}
+        </select>
       </div>
 
-      <table border="1" cellPadding="10" cellSpacing="0" style={{ width: '100%', textAlign: 'left' }}>
+      {/* Attendance Records Table */}
+      <table border="1" cellPadding="8" style={{ borderCollapse: 'collapse', width: '100%' }}>
         <thead>
           <tr>
-            <th>Date</th>
-            <th>Time</th>
+            <th>ID</th>
             <th>Student Code</th>
             <th>Student Name</th>
             <th>Status</th>
-            <th>Scanned Code</th>
+            <th>Scanned At</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {filteredAttendances.map((item) => (
-            <tr key={item.id}>
-              <td>{item.date}</td>
-              <td>{item.time}</td>
-              <td>{item.student?.student_code || 'N/A'}</td>
-              <td>{item.student?.name || 'Unknown'}</td>
-              <td>{item.status}</td>
-              <td>{item.scanned_code}</td>
-              <td>
-                <button onClick={() => handleDelete(item.id)}>Delete</button>
-              </td>
+          {logs.length > 0 ? (
+            logs.map(log => (
+              <tr key={log.id}>
+                <td>{log.id}</td>
+                <td>{log.student?.student_code || 'N/A'}</td>
+                <td>{log.student?.name || 'N/A'}</td>
+                <td>{log.status}</td>
+                <td>{new Date(log.scanned_at || log.created_at).toLocaleString()}</td>
+                <td>
+                  <button onClick={() => handleStatusUpdate(log.id, log.status)}>Toggle Status</button>{' '}
+                  <button onClick={() => handleDelete(log.id)}>Delete</button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="6" style={{ textAlign: 'center' }}>No attendance records found</td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
     </div>

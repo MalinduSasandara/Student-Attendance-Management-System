@@ -1,27 +1,26 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\StudentController;
-use App\Http\Controllers\Api\AttendanceController;
-use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\StudentController;
+use App\Http\Controllers\AttendanceController;
 
-// Public login route
+// Auth
 Route::post('/login', [AuthController::class, 'login']);
 
-// Protected routes (require valid login session token)
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
-    
-    // Dashboard Stats
-    Route::get('/dashboard/stats', [DashboardController::class, 'index']);
-    
-    // Student CRUD
-    Route::apiResource('students', StudentController::class);
-    
-    // Attendance Operations
-    Route::get('/attendances', [AttendanceController::class, 'index']);
-    Route::post('/attendances/scan', [AttendanceController::class, 'scanQrCode']);
-    Route::put('/attendances/{id}', [AttendanceController::class, 'update']);
-    Route::delete('/attendances/{id}', [AttendanceController::class, 'destroy']);
-});
+// Dashboard Stats
+Route::get('/dashboard/stats', [AttendanceController::class, 'stats']);
+
+// Student CRUD
+Route::get('/students', [StudentController::class, 'index']);          // View all
+Route::get('/students/{id}', [StudentController::class, 'show']);       // View single
+Route::post('/students', [StudentController::class, 'store']);         // Create
+Route::put('/students/{id}', [StudentController::class, 'update']);     // Update
+Route::delete('/students/{id}', [StudentController::class, 'destroy']); // Delete
+
+// Attendance Operations
+Route::post('/attendances/scan', [AttendanceController::class, 'scan']);           // Create by scan
+Route::get('/attendances', [AttendanceController::class, 'index']);                // View all
+Route::get('/attendances/student/{student_id}', [AttendanceController::class, 'byStudent']); // View by student
+Route::put('/attendances/{id}', [AttendanceController::class, 'update']);          // Update record
+Route::delete('/attendances/{id}', [AttendanceController::class, 'destroy']);      // Delete record

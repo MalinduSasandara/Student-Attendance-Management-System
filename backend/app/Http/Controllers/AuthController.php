@@ -18,19 +18,30 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Invalid credentials'], 401)
-                             ->header('Access-Control-Allow-Origin', '*');
+            return response()->json([
+                'message' => 'Invalid email or password'
+            ], 401);
         }
 
-        // Generate token safely
-        $token = method_exists($user, 'createToken') 
-            ? $user->createToken('auth_token')->plainTextToken 
-            : 'dummy_token_123';
+        // Generate Sanctum Bearer Token
+        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'status' => 'success',
+            'message' => 'Logged in successfully',
             'token' => $token,
             'user' => $user
-        ], 200)->header('Access-Control-Allow-Origin', '*');
+        ], 200);
+    }
+
+    public function logout(Request $request)
+    {
+        if ($request->user()) {
+            $request->user()->currentAccessToken()->delete();
+        }
+
+        return response()->json([
+            'message' => 'Logged out successfully'
+        ], 200);
     }
 }

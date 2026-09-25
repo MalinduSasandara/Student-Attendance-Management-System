@@ -1,76 +1,75 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Student;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class AttendanceController extends Controller
 {
-    public function index()
+    public function scan(Request $request)
     {
         try {
-            $attendances = Attendance::with('student')->latest()->get();
-            return response()->json($attendances, 200);
+            $request->validate([
+                'qr_code' => 'required|string',
+            ]);
+
+            $qrCode = trim($request->qr_code);
+
+            // Look up student by student_code or qr_code
+            $student = Student::where('student_code', $qrCode)
+                ->orWhere('qr_code', $qrCode)
+                ->first();
+
+            if (!$student) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => "Student with code '{$qrCode}' not found in database."
+                ], 404);
+            }
+
+            $today = Carbon::today()->toDateString();
+            $currentTime = Carbon::now()->toTimeString();
+
+            // Create record
+            $attendance = new Attendance();
+            $attendance->student_id = $student->id;
+            $attendance->scanned_code = $qrCode;
+            $attendance->date = $today;
+            $attendance->time = $currentTime;
+            $attendance->status = 'present';
+            $attendance->save();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => "Attendance recorded for {$student->name}!",
+                'data' => $attendance
+            ], 200);
+
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            Log::error('Scan Attendance Error: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to log attendance: ' . $e->getMessage()
+            ], 500);
         }
     }
 
-    public function scanQrCode(Request $request)
+    public function index()
     {
-        $request->validate([
-            'qr_code' => 'required|string',
-        ]);
-
-        $student = Student::where('qr_code', $request->qr_code)
-            ->orWhere('student_code', $request->qr_code)
-            ->first();
-
-        if (!$student) {
-            return response()->json(['message' => 'Student not found with this code.'], 404);
-        }
-
-        $today = Carbon::today()->toDateString();
-        $now = Carbon::now()->toTimeString();
-
-        // Check if student already marked attendance today
-        $existing = Attendance::where('student_id', $student->id)
-            ->where('date', $today)
-            ->first();
-
-        if ($existing) {
-            return response()->json([
-                'message' => 'Attendance already recorded for today.',
-                'data' => $existing->load('student')
-            ], 200);
-        }
-
-        $attendance = Attendance::create([
-            'student_id'   => $student->id,
-            'scanned_code' => $request->qr_code,
-            'date'         => $today,
-            'time'         => $now,
-            'status'       => 'present',
-        ]);
-
-        return response()->json([
-            'message' => 'Attendance marked successfully!',
-            'data'    => $attendance->load('student')
-        ], 201);
+        return response()->json(Attendance::with('student')->latest()->get());
     }
 
     public function destroy($id)
     {
         $attendance = Attendance::find($id);
-        if (!$attendance) {
-            return response()->json(['message' => 'Record not found'], 404);
+        if ($attendance) {
+            $attendance->delete();
+            return response()->json(['message' => 'Record deleted successfully']);
         }
-
-        $attendance->delete();
-        return response()->json(['message' => 'Attendance record deleted'], 200);
+        return response()->json(['message' => 'Record not found'], 404);
     }
 }
