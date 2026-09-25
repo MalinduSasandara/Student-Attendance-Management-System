@@ -1,43 +1,67 @@
-import React, { useState } from 'react';
-import API from '../api/axiosInstance';
+import React, { useEffect, useState, useRef } from 'react';
+import axios from 'axios';
+import { Link, useNavigate } from 'react-router-dom';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 const QrScannerPage = () => {
-  const [qrCode, setQrCode] = useState('');
-  const [message, setMessage] = useState(null);
-  const [error, setError] = useState(null);
+  const [scanResult, setScanResult] = useState(null);
+  const [statusMessage, setStatusMessage] = useState('');
+  const scannerRef = useRef(null);
+  const navigate = useNavigate();
 
-  const handleScan = async (e) => {
-    e.preventDefault();
-    setMessage(null);
-    setError(null);
+  useEffect(() => {
+    const scanner = new Html5QrcodeScanner(
+      "qr-reader",
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      false
+    );
 
+    scanner.render(onScanSuccess, () => {});
+    scannerRef.current = scanner;
+
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(err => console.error(err));
+      }
+    };
+  }, []);
+
+  const onScanSuccess = async (decodedText) => {
+    setScanResult(decodedText);
     try {
-      const response = await API.post('/attendances/scan', { qr_code: qrCode });
-      setMessage(`${response.data.message} (${response.data.data.student.name})`);
-      setQrCode('');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Error marking attendance');
+      const response = await axios.post('http://localhost:8000/api/attendances/scan', {
+        qr_code: decodedText,
+      });
+      setStatusMessage(response.data.message || 'Attendance recorded!');
+    } catch (error) {
+      setStatusMessage(error.response?.data?.message || 'Failed to record attendance.');
     }
   };
 
-  return (
-    <div style={{ padding: '20px', maxWidth: '500px', margin: '0 auto' }}>
-      <h2>Scan Student QR / Barcode</h2>
-      {message && <p style={{ color: 'green' }}>{message}</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
 
-      <form onSubmit={handleScan}>
-        <input
-          type="text"
-          value={qrCode}
-          onChange={(e) => setQrCode(e.target.value)}
-          placeholder="Scan or enter QR code value..."
-          autoFocus
-          required
-          style={{ width: '100%', padding: '10px', marginBottom: '10px' }}
-        />
-        <button type="submit" style={{ width: '100%', padding: '10px', cursor: 'pointer' }}>Mark Attendance</button>
-      </form>
+  return (
+    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
+      {/* Top Header Navigation Tabs */}
+      <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', alignItems: 'center' }}>
+        <Link to="/dashboard" style={{ color: '#555', textDecoration: 'none' }}>Dashboard</Link>
+        <Link to="/students" style={{ color: '#555', textDecoration: 'none' }}>Students</Link>
+        <Link to="/scan-qr" style={{ fontWeight: 'bold', color: '#000', textDecoration: 'none' }}>Scan QR</Link>
+        <Link to="/attendances" style={{ color: '#555', textDecoration: 'none' }}>Attendance Logs</Link>
+        <button onClick={handleLogout} style={{ marginLeft: 'auto', cursor: 'pointer' }}>Logout</button>
+      </div>
+
+      <h2>Live QR Code Scanner</h2>
+
+      {statusMessage && <p style={{ fontWeight: 'bold' }}>{statusMessage}</p>}
+
+      <div id="qr-reader" style={{ maxWidth: '500px' }}></div>
+
+      {scanResult && <p><strong>Last Scanned:</strong> {scanResult}</p>}
     </div>
   );
 };
