@@ -4,29 +4,31 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        $credentials = $request->validate([
+        $request->validate([
             'email'    => 'required|email',
             'password' => 'required',
         ]);
 
-        if (Auth::attempt($credentials)) {
-            $user  = Auth::user();
-            $token = $user->createToken('admin-token')->plainTextToken;
+        $user = User::where('email', $request->email)->first();
 
-            return response()->json([
-                'message' => 'Login successful',
-                'token'   => $token,
-                'user'    => $user,
-            ], 200);
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Invalid email or password'], 401);
         }
 
-        return response()->json(['message' => 'Invalid email or password'], 401);
+        $token = $user->createToken('admin-token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Login successful',
+            'token'   => $token,
+            'user'    => $user,
+        ], 200);
     }
 
     public function logout(Request $request)
