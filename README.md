@@ -102,3 +102,16 @@ npm start
 
 - **Email**: `admin@gmail.com`
 - **Password**: `password`
+
+## Screenshots of Operations
+
+  <img width="1920" height="988" alt="image" src="https://github.com/user-attachments/assets/b0298065-0aea-4509-80ce-e187b66b02ca" />
+
+  <img width="1921" height="992" alt="image" src="https://github.com/user-attachments/assets/34c97d9c-6341-4b71-8046-de768ea626cf" />
+  
+  <img width="1920" height="991" alt="image" src="https://github.com/user-attachments/assets/0fd3c9e0-ac57-4e7d-8b28-d9e83073a80a" />
+
+  <img width="1918" height="991" alt="image" src="https://github.com/user-attachments/assets/4a5fc530-e2fb-4879-a80d-954e307b660f" />
+
+  <img width="1921" height="995" alt="image" src="https://github.com/user-attachments/assets/4a332992-727d-4854-8914-628475883a29" />
+
