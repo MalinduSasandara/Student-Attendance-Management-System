@@ -15,6 +15,10 @@ class Attendance extends Model
         'scanned_at',
     ];
 
+    protected $casts = [
+        'scanned_at' => 'datetime',
+    ];
+    
     public function student()
     {
         return $this->belongsTo(Student::class);
