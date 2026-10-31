@@ -21,16 +21,16 @@ const Login = () => {
         password,
       });
 
-      // Store Sanctum token & user info in localStorage
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
+// Store Sanctum token & user info in localStorage
+      if (response.data.access_token) {
+        localStorage.setItem('token', response.data.access_token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
         
         // Immediate redirect to Dashboard
         navigate('/dashboard');
       } else {
         setError('Login failed: Token not received.');
-      }
+      } 
     } catch (err) {
       console.error('Login error:', err);
       const msg = err.response?.data?.message || 'Invalid credentials or server error.';

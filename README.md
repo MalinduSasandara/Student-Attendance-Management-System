@@ -1,30 +1,29 @@
 # Student Attendance Management System
 
-A full-stack Student Attendance Management system built with **Laravel 11** and **React**. The application features complete student CRUD operations, QR-based attendance logging, and real-time dashboard analytics.
+A full-stack Student Attendance Management system built with **Laravel 12** and **React**. The application features complete student CRUD operations, QR-based attendance logging with duplicate-scan prevention, live dashboard analytics, and secure API authentication via Laravel Sanctum.
 
 ---
 
 ## Features
 
-- **Admin Authentication**: Secure login using Laravel Sanctum tokens.
+- **Admin Authentication**: Secure login using Laravel Sanctum Bearer tokens.
 - **Dashboard Analytics**: Live counters for total students, total attendance logs, and today's scans.
 - **Student Management (CRUD)**:
   - Create new student records.
   - View all students and individual student details.
   - Update student information.
   - Delete students.
-- **Attendance Management (CRUD)**:
+- **Attendance Management**:
   - Record attendance via QR / Barcode scanning or manual code submission.
-  - View all attendance logs.
-  - Filter logs by specific student.
-  - Toggle attendance status (Present / Absent) and delete logs.
+  - Backend enforcement of the "one scan per student per day" rule to prevent duplicate entries.
+  - View all attendance logs, filter by student, update status (`Present` / `Absent`), and delete records.
 
 ---
 
 ## Tech Stack
 
-- **Backend**: Laravel 11, PHP, MySQL, Sanctum
-- **Frontend**: React, Axios, React Router
+- **Backend**: Laravel 12, PHP, MySQL, Laravel Sanctum
+- **Frontend**: React, Axios, React Router, HTML5-QRCode Scanner
 - **Database**: MySQL
 
 ---
@@ -33,20 +32,18 @@ A full-stack Student Attendance Management system built with **Laravel 11** and 
 
 ```text
 Student Attendance Management/
-├── backend/                  # Laravel API
+├── backend/                  # Laravel 12 API
 │   ├── app/
 │   │   ├── Http/Controllers/ # AuthController, StudentController, AttendanceController
 │   │   └── Models/          # User, Student, Attendance
 │   ├── database/
 │   │   └── migrations/      # Users, Students, Attendances tables
 │   └── routes/
-│       └── api.php          # API Endpoints
+│       └── api.php          # Protected & Public API Endpoints
 └── frontend/                 # React UI
     └── src/
         ├── components/      # Navigation, ProtectedRoute
         └── pages/           # Login, Dashboard, Students, ScanQR, AttendanceList
-```
-
 ---
 
 ## Complete Setup Instructions
