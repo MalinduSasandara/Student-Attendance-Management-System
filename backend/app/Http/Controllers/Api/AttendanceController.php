@@ -50,6 +50,12 @@ class AttendanceController extends Controller
 
     public function getByStudent($id)
     {
+        // Return 404 if the student doesn't exist
+        $student = Student::find($id);
+        if (!$student) {
+            return response()->json(['message' => 'Student not found'], 404);
+        }
+
         $attendances = Attendance::where('student_id', $id)->with('student')->latest()->get();
         return response()->json($attendances, 200);
     }
@@ -61,8 +67,10 @@ class AttendanceController extends Controller
             return response()->json(['message' => 'Attendance record not found'], 404);
         }
 
+        // Constrained validation ensuring status is strictly Present or Absent
         $validated = $request->validate([
-            'status' => 'required|in:Present,Absent',
+            'status'     => 'required|in:Present,Absent',
+            'scanned_at' => 'sometimes|date', // Optional: allow editing timestamp if supplied
         ]);
 
         $attendance->update($validated);
