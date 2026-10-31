@@ -36,6 +36,18 @@ class AttendanceController extends Controller
 
         $student = Student::where('student_code', $request->student_code)->first();
 
+        // Check if attendance has already been recorded for this student today
+        $existingAttendance = Attendance::where('student_id', $student->id)
+            ->whereDate('scanned_at', Carbon::today())
+            ->first();
+
+        if ($existingAttendance) {
+            return response()->json([
+                'message'    => 'Attendance already recorded for today',
+                'attendance' => $existingAttendance->load('student')
+            ], 200); // 200 OK with duplicate notice message
+        }
+
         $attendance = Attendance::create([
             'student_id' => $student->id,
             'status'     => 'Present',
@@ -50,7 +62,6 @@ class AttendanceController extends Controller
 
     public function getByStudent($id)
     {
-        // Return 404 if the student doesn't exist
         $student = Student::find($id);
         if (!$student) {
             return response()->json(['message' => 'Student not found'], 404);
@@ -67,10 +78,9 @@ class AttendanceController extends Controller
             return response()->json(['message' => 'Attendance record not found'], 404);
         }
 
-        // Constrained validation ensuring status is strictly Present or Absent
         $validated = $request->validate([
             'status'     => 'required|in:Present,Absent',
-            'scanned_at' => 'sometimes|date', // Optional: allow editing timestamp if supplied
+            'scanned_at' => 'sometimes|date',
         ]);
 
         $attendance->update($validated);
