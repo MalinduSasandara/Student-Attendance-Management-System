@@ -6,8 +6,14 @@ import { Html5QrcodeScanner } from 'html5-qrcode';
 const QrScannerPage = () => {
   const [scanResult, setScanResult] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
+  const [statusType, setStatusType] = useState(''); // 'success' or 'error'
+  
   const scannerRef = useRef(null);
+  const isSubmittingRef = useRef(false); // In-flight guard using ref to avoid closure staleness
+  const cooldownRef = useRef(false);     // Cooldown guard
   const navigate = useNavigate();
+
+  const getToken = () => localStorage.getItem('token');
 
   useEffect(() => {
     const scanner = new Html5QrcodeScanner(
@@ -27,14 +33,40 @@ const QrScannerPage = () => {
   }, []);
 
   const onScanSuccess = async (decodedText) => {
+    // Prevent multiple rapid-fire submissions while a request is in flight or during cooldown
+    if (isSubmittingRef.current || cooldownRef.current) return;
+
+    isSubmittingRef.current = true;
     setScanResult(decodedText);
+    setStatusMessage('Processing scan...');
+    setStatusType('info');
+
     try {
-      const response = await axios.post('http://localhost:8000/api/attendances/scan', {
-        qr_code: decodedText,
-      });
-      setStatusMessage(response.data.message || 'Attendance recorded!');
+      const response = await axios.post(
+        'http://localhost:8000/api/attendances/scan', 
+        { student_code: decodedText }, // Aligned with backend student_code validation
+        { headers: { Authorization: `Bearer ${getToken()}` } }
+      );
+
+      setStatusMessage(response.data.message || 'Attendance recorded successfully!');
+      setStatusType('success');
+
+      // Trigger 3-second cooldown to prevent duplicate burst scans
+      cooldownRef.current = true;
+      setTimeout(() => {
+        cooldownRef.current = false;
+      }, 3000);
+
     } catch (error) {
-      setStatusMessage(error.response?.data?.message || 'Failed to record attendance.');
+      if (error.response?.status === 401) {
+        setStatusMessage('Session expired. Please log in again.');
+        navigate('/login');
+      } else {
+        setStatusMessage(error.response?.data?.message || 'Failed to record attendance.');
+      }
+      setStatusType('error');
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 
@@ -57,11 +89,22 @@ const QrScannerPage = () => {
 
       <h2>Live QR Code Scanner</h2>
 
-      {statusMessage && <p style={{ fontWeight: 'bold' }}>{statusMessage}</p>}
+      {statusMessage && (
+        <p style={{ 
+          fontWeight: 'bold', 
+          padding: '10px', 
+          background: statusType === 'success' ? '#d4edda' : statusType === 'error' ? '#f8d7da' : '#e2e3e5',
+          color: statusType === 'success' ? '#155724' : statusType === 'error' ? '#721c24' : '#383d41',
+          borderRadius: '4px',
+          maxWidth: '500px'
+        }}>
+          {statusMessage}
+        </p>
+      )}
 
       <div id="qr-reader" style={{ maxWidth: '500px' }}></div>
 
-      {scanResult && <p><strong>Last Scanned:</strong> {scanResult}</p>}
+      {scanResult && <p style={{ marginTop: '15px' }}><strong>Last Scanned Code:</strong> {scanResult}</p>}
     </div>
   );
 };
