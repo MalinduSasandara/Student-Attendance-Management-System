@@ -1,38 +1,19 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Models\Student;
 use Illuminate\Http\Request;
+use App\Models\Student;
 
 class StudentController extends Controller
 {
+    // View all students
     public function index()
     {
-        try {
-            $students = Student::latest()->get();
-            return response()->json($students, 200);
-        } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
+        return response()->json(Student::latest()->get(), 200);
     }
 
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'student_code' => 'required|string|unique:students,student_code',
-            'name'         => 'required|string|max:255',
-            'email'        => 'required|email|unique:students,email',
-            'phone'        => 'required|string',
-            'qr_code'      => 'required|string|unique:students,qr_code',
-            'status'       => 'nullable|string',
-        ]);
-
-        $student = Student::create($validated);
-        return response()->json($student, 201);
-    }
-
+    // View single student
     public function show($id)
     {
         $student = Student::find($id);
@@ -42,6 +23,23 @@ class StudentController extends Controller
         return response()->json($student, 200);
     }
 
+    // Create student
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'student_code' => 'required|string|unique:students,student_code',
+            'name'         => 'required|string',
+            'email'        => 'required|email|unique:students,email',
+            'phone'        => 'nullable|string',
+        ]);
+
+        $validated['qr_code'] = $validated['student_code'];
+        $student = Student::create($validated);
+
+        return response()->json($student, 201);
+    }
+
+    // Update student
     public function update(Request $request, $id)
     {
         $student = Student::find($id);
@@ -50,18 +48,19 @@ class StudentController extends Controller
         }
 
         $validated = $request->validate([
-            'student_code' => 'sometimes|required|string|unique:students,student_code,'.$id,
-            'name'         => 'sometimes|required|string|max:255',
-            'email'        => 'sometimes|required|email|unique:students,email,'.$id,
-            'phone'        => 'sometimes|required|string',
-            'qr_code'      => 'sometimes|required|string|unique:students,qr_code,'.$id,
-            'status'       => 'nullable|string',
+            'student_code' => 'required|string|unique:students,student_code,' . $id,
+            'name'         => 'required|string',
+            'email'        => 'required|email|unique:students,email,' . $id,
+            'phone'        => 'nullable|string',
         ]);
 
+        $validated['qr_code'] = $validated['student_code'];
         $student->update($validated);
+
         return response()->json($student, 200);
     }
 
+    // Delete student
     public function destroy($id)
     {
         $student = Student::find($id);

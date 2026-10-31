@@ -2,74 +2,83 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
 use App\Models\Attendance;
 use App\Models\Student;
-use Illuminate\Http\Request;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
 
 class AttendanceController extends Controller
 {
-    public function scan(Request $request)
-    {
-        try {
-            $request->validate([
-                'qr_code' => 'required|string',
-            ]);
-
-            $qrCode = trim($request->qr_code);
-
-            // Look up student by student_code or qr_code
-            $student = Student::where('student_code', $qrCode)
-                ->orWhere('qr_code', $qrCode)
-                ->first();
-
-            if (!$student) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => "Student with code '{$qrCode}' not found in database."
-                ], 404);
-            }
-
-            $today = Carbon::today()->toDateString();
-            $currentTime = Carbon::now()->toTimeString();
-
-            // Create record
-            $attendance = new Attendance();
-            $attendance->student_id = $student->id;
-            $attendance->scanned_code = $qrCode;
-            $attendance->date = $today;
-            $attendance->time = $currentTime;
-            $attendance->status = 'present';
-            $attendance->save();
-
-            return response()->json([
-                'status' => 'success',
-                'message' => "Attendance recorded for {$student->name}!",
-                'data' => $attendance
-            ], 200);
-
-        } catch (\Exception $e) {
-            Log::error('Scan Attendance Error: ' . $e->getMessage());
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to log attendance: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
     public function index()
     {
-        return response()->json(Attendance::with('student')->latest()->get());
+        $attendances = Attendance::with('student')->latest()->get();
+        return response()->json($attendances, 200);
+    }
+
+    public function stats()
+    {
+        $totalStudents = Student::count();
+        $totalAttendances = Attendance::count();
+        $todayScans = Attendance::whereDate('scanned_at', Carbon::today())->count();
+
+        return response()->json([
+            'total_students'    => $totalStudents,
+            'total_attendances' => $totalAttendances,
+            'today_scans'       => $todayScans,
+        ], 200);
+    }
+
+    public function scan(Request $request)
+    {
+        $request->validate([
+            'student_code' => 'required|string|exists:students,student_code',
+        ]);
+
+        $student = Student::where('student_code', $request->student_code)->first();
+
+        $attendance = Attendance::create([
+            'student_id' => $student->id,
+            'status'     => 'Present',
+            'scanned_at' => Carbon::now(),
+        ]);
+
+        return response()->json([
+            'message'    => 'Attendance recorded successfully',
+            'attendance' => $attendance->load('student')
+        ], 201);
+    }
+
+    public function getByStudent($id)
+    {
+        $attendances = Attendance::where('student_id', $id)->with('student')->latest()->get();
+        return response()->json($attendances, 200);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $attendance = Attendance::find($id);
+        if (!$attendance) {
+            return response()->json(['message' => 'Attendance record not found'], 404);
+        }
+
+        $validated = $request->validate([
+            'status' => 'required|in:Present,Absent',
+        ]);
+
+        $attendance->update($validated);
+
+        return response()->json($attendance->load('student'), 200);
     }
 
     public function destroy($id)
     {
         $attendance = Attendance::find($id);
-        if ($attendance) {
-            $attendance->delete();
-            return response()->json(['message' => 'Record deleted successfully']);
+        if (!$attendance) {
+            return response()->json(['message' => 'Attendance record not found'], 404);
         }
-        return response()->json(['message' => 'Record not found'], 404);
+
+        $attendance->delete();
+
+        return response()->json(['message' => 'Attendance record deleted successfully'], 200);
     }
 }
